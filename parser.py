@@ -4,17 +4,17 @@ import re
 HEAD_PATTERN = re.compile(
     r"^(?P<heads>\d+(?:\.\d+)?)头"
     r"(?P<product>[^/【\[\]]+?)"
-    r"/(?P<weight>\d+(?:\.\d+)?)g"
+    r"/(?P<weight>\d+(?:\.\d+)?)[gG克]"
     r"(?:/(?P<qty>\d+(?:\.\d+)?)个)?"
-    r"(?:[【\[](?P<amount>\d+(?:\.\d+)?)[】\]])?"
+    r"(?:[【\[]\s*[¥￥]?(?P<amount>\d+(?:\.\d+)?)\s*[】\]])?"
     r"(?:\s*(?P<extra>.+))?$"
 )
 
 NO_HEAD_PATTERN = re.compile(
     r"^(?P<product>[^/【\[\]]+?)"
-    r"/(?P<weight>\d+(?:\.\d+)?)g"
+    r"/(?P<weight>\d+(?:\.\d+)?)[gG克]"
     r"(?:/(?P<qty>\d+(?:\.\d+)?)个)?"
-    r"(?:[【\[](?P<amount>\d+(?:\.\d+)?)[】\]])?"
+    r"(?:[【\[]\s*[¥￥]?(?P<amount>\d+(?:\.\d+)?)\s*[】\]])?"
     r"(?:\s*(?P<extra>.+))?$"
 )
 
@@ -24,8 +24,9 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
 
-    text = text.replace("\r", "")
-    text = text.replace("\n", "")
+    text = text.replace("\r\n", "\n")
+    text = text.replace("\r", "\n")
+    text = text.replace("\n", "|")
     text = text.replace("｜", "|")
     text = text.replace("／", "/")
     text = text.replace("【 ", "【").replace(" 】", "】")

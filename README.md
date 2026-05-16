@@ -9,9 +9,18 @@
 
 ## 运行方法
 
-```powershell
-py -m streamlit run app.py
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run app.py
 ```
+
+## 示例数据
+
+进入“订单汇总”页面后，点击“加载示例订单”即可快速生成演示数据。也可以下载示例订单 Excel，用于测试批量上传流程。
+
+进入“库存与成本管理”页面后，点击“加载示例库存”即可查看复称重量变化后的损耗率、当前折算头数和真实成本。
 
 ## 当前版本说明
 

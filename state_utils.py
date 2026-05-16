@@ -52,6 +52,66 @@ INVENTORY_COLUMNS = [
     "批次状态",
 ]
 
+SAMPLE_ORDER_INPUTS = [
+    {
+        "订单号": "DEMO-001",
+        "订单备注": "10头赤嘴母胶/350g/7个【2030】\n特选珍珠川贝/50g【470】",
+        "买家实付金额(¥)": 2500,
+        "平台补贴金额(¥)": 120,
+        "商家初始到手金额(¥)": 2380,
+    },
+    {
+        "订单号": "DEMO-002",
+        "订单备注": "10.8头土鳘公胶/510g/11个【3880】 纸皮筒",
+        "买家实付金额(¥)": 3880,
+        "平台补贴金额(¥)": 180,
+        "商家初始到手金额(¥)": 3700,
+    },
+    {
+        "订单号": "DEMO-003",
+        "订单备注": "12头北海公胶/420克/10个【2680】|特选珍珠川贝/80G【720】",
+        "买家实付金额(¥)": 3400,
+        "平台补贴金额(¥)": 160,
+        "商家初始到手金额(¥)": 3240,
+    },
+]
+
+SAMPLE_INVENTORY_INPUTS = [
+    {
+        "批次号": "DEMO-B20260501-0001",
+        "展示名称": "10头赤嘴母胶",
+        "进货日期": "2026-05-01",
+        "进货总重(g)": 2500,
+        "初始个数": 50,
+        "初始成本(¥/500g)": 1680,
+        "当前个数": 38,
+        "最近复称重量(g)": 1840,
+        "批次状态": "在库",
+    },
+    {
+        "批次号": "DEMO-B20260503-0002",
+        "展示名称": "10.8头土鳘公胶",
+        "进货日期": "2026-05-03",
+        "进货总重(g)": 5100,
+        "初始个数": 110,
+        "初始成本(¥/500g)": 3050,
+        "当前个数": 82,
+        "最近复称重量(g)": 3715,
+        "批次状态": "在库",
+    },
+    {
+        "批次号": "DEMO-B20260508-0003",
+        "展示名称": "12头北海公胶",
+        "进货日期": "2026-05-08",
+        "进货总重(g)": 4200,
+        "初始个数": 100,
+        "初始成本(¥/500g)": 2180,
+        "当前个数": 24,
+        "最近复称重量(g)": 995,
+        "批次状态": "在库",
+    },
+]
+
 
 def init_session_state():
     if "order_items_df" not in st.session_state:
@@ -72,6 +132,69 @@ def to_excel_bytes(df: pd.DataFrame, sheet_name: str) -> bytes:
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name=sheet_name)
     return output.getvalue()
+
+
+def get_sample_orders_upload_df() -> pd.DataFrame:
+    return pd.DataFrame(SAMPLE_ORDER_INPUTS)
+
+
+def build_sample_order_rows() -> pd.DataFrame:
+    sample_rows = []
+
+    for order in SAMPLE_ORDER_INPUTS:
+        sample_rows.append(
+            parse_order_to_rows(
+                order_id=order["订单号"],
+                remark_text=order["订单备注"],
+                buyer_paid_amount=order["买家实付金额(¥)"],
+                platform_subsidy_amount=order["平台补贴金额(¥)"],
+                merchant_receivable_amount=order["商家初始到手金额(¥)"],
+            )
+        )
+
+    return pd.concat(sample_rows, ignore_index=True)
+
+
+def load_sample_orders():
+    sample_df = build_sample_order_rows()
+    current_df = st.session_state["order_items_df"]
+    current_ids = set(current_df["订单号"].astype(str)) if not current_df.empty else set()
+    new_rows = sample_df[~sample_df["订单号"].astype(str).isin(current_ids)]
+
+    if new_rows.empty:
+        return 0
+
+    append_order_rows(new_rows)
+    return len(new_rows)
+
+
+def build_sample_inventory_df() -> pd.DataFrame:
+    inventory_df = pd.DataFrame(SAMPLE_INVENTORY_INPUTS)
+
+    for column in INVENTORY_COLUMNS:
+        if column not in inventory_df.columns:
+            inventory_df[column] = None
+
+    return recalculate_inventory_df(inventory_df[INVENTORY_COLUMNS])
+
+
+def get_sample_inventory_upload_df() -> pd.DataFrame:
+    return build_sample_inventory_df()
+
+
+def load_sample_inventory():
+    sample_df = build_sample_inventory_df()
+    current_df = st.session_state["inventory_df"]
+    current_ids = set(current_df["批次号"].astype(str)) if not current_df.empty else set()
+    new_rows = sample_df[~sample_df["批次号"].astype(str).isin(current_ids)]
+
+    if new_rows.empty:
+        return 0
+
+    st.session_state["inventory_df"] = recalculate_inventory_df(
+        pd.concat([current_df, new_rows], ignore_index=True)
+    )
+    return len(new_rows)
 
 
 def parse_order_to_rows(
@@ -183,6 +306,17 @@ def recalculate_inventory_df(df: pd.DataFrame) -> pd.DataFrame:
 
     for idx, row in df.iterrows():
         try:
+            values = [
+                row.get("进货总重(g)"),
+                row.get("初始个数"),
+                row.get("初始成本(¥/500g)"),
+                row.get("当前个数"),
+                row.get("最近复称重量(g)"),
+            ]
+
+            if any(pd.isna(value) for value in values):
+                raise ValueError("missing inventory value")
+
             result = calculate_inventory_cost(
                 display_name=str(row.get("展示名称") or ""),
                 purchase_weight_g=float(row.get("进货总重(g)") or 0),

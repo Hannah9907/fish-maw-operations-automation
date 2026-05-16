@@ -4,6 +4,8 @@ def to_float(value, default=0.0):
         return default
 
     try:
+        if value != value:
+            return default
         return float(value)
     except (TypeError, ValueError):
         return default
