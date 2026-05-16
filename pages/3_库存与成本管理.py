@@ -6,7 +6,9 @@ import streamlit as st
 from state_utils import (
     INVENTORY_COLUMNS,
     generate_batch_id,
+    get_sample_inventory_upload_df,
     init_session_state,
+    load_sample_inventory,
     recalculate_inventory_df,
     to_excel_bytes,
 )
@@ -17,6 +19,31 @@ init_session_state()
 
 st.title("📦 库存与成本管理")
 st.caption("维护库存批次，并在可编辑表格中实时更新损耗率、当前折算头数和当前真实成本。")
+
+st.divider()
+
+st.subheader("快速体验")
+st.write("可以先加载一组示例库存，直接查看复称后损耗率、折算头数和真实成本的自动计算结果。")
+
+col_sample_load, col_sample_download = st.columns([1, 5])
+
+with col_sample_load:
+    if st.button("加载示例库存", type="primary"):
+        inserted_count = load_sample_inventory()
+        if inserted_count:
+            st.success(f"已加载 {inserted_count} 个示例库存批次。")
+        else:
+            st.info("示例库存已经在数据表里了。")
+
+with col_sample_download:
+    sample_inventory_df = get_sample_inventory_upload_df()
+    sample_excel_data = to_excel_bytes(sample_inventory_df, sheet_name="sample_inventory")
+    st.download_button(
+        label="下载示例库存 Excel",
+        data=sample_excel_data,
+        file_name="fish_maw_sample_inventory.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 st.divider()
 
